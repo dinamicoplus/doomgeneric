@@ -44,19 +44,35 @@ FixedMul
 // FixedDiv, C version.
 //
 
-fixed_t FixedDiv(fixed_t a, fixed_t b)
-{
-    if ((abs(a) >> 14) >= abs(b))
-    {
-	return (a^b) < 0 ? INT_MIN : INT_MAX;
-    }
-    else
-    {
-	int64_t result;
-
-	result = ((int64_t) a << 16) / b;
-
-	return (fixed_t) result;
-    }
+static inline uint32_t uabs32(int32_t x) {
+    uint32_t ux = (uint32_t)x;
+    if (x < 0) ux = (~ux) + 1;   // two's complement
+    return ux;
 }
 
+fixed_t FixedDiv(fixed_t a, fixed_t b)
+{
+    // mismo early-exit que el original, también cubre b == 0
+    uint32_t ua = uabs32(a);
+    uint32_t ub = uabs32(b);
+    if (ub == 0 || (ua >> 14) >= ub) {
+        return ((a ^ b) < 0) ? INT_MIN : INT_MAX;
+    }
+
+    int neg = ((a ^ b) < 0);
+
+    // parte entera (32-bit idiv)
+    uint32_t q  = ua / ub;
+    uint32_t r  = ua % ub;
+
+    // parte fraccionaria: 16 bits con división binaria (sin / de 64-bit)
+    uint32_t frac = 0;
+    for (int i = 0; i < 16; i++) {
+        r <<= 1;
+        frac <<= 1;
+        if (r >= ub) { r -= ub; frac |= 1; }
+    }
+
+    uint32_t ures = (q << 16) | (frac & 0xFFFF);
+    return neg ? -(int32_t)ures : (int32_t)ures;
+}
