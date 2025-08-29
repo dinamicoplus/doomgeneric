@@ -11,21 +11,27 @@
 #include <stdio.h>
 
 #include <stdbool.h>
+#include <kernel/console.h>
 
 
 void DG_Init() {
-	
+	console_clear();
+	printf("DG_Init()\n");
 }
 
 void DG_DrawFrame() {
-
+	printf("DG_DrawFrame()\n");
+	getchar();
 }
 
 void DG_SleepMs(uint32_t ms) {
-
+	printf("DG_SleepMs()\n");
+	getchar();
 }
 
 uint32_t DG_GetTicksMs() {
+	printf("DG_GetTicksMs()\n");
+	getchar();
 	return 0;
 }
 
