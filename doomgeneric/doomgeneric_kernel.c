@@ -12,20 +12,29 @@
 
 #include <stdbool.h>
 #include <drivers/video_vga13.h>
+#include <drivers/pit.h>
+#include <kernel/system.h>
 
+uint8_t color_wheel = 0;
+uint32_t start_ticks;
 
 void DG_Init() {
 	vga_set_mode13();
+    vga13_build_palette();
 	vga13_clear(0);
+    start_ticks = pit_ticks;
 }
 
 void DG_DrawFrame(void) {
+
+    // vga13_clear(color_wheel);
+    // color_wheel = (color_wheel + 1) & 0xFF;
     const uint32_t *src = (const uint32_t *)DG_ScreenBuffer;
     volatile uint8_t *dst = VGA13_FB;
     for (int y = 0; y < VGA13_H; ++y) {
-        const uint32_t *s0 = src + (y*2) * 640;
-        const uint32_t *s1 = s0  + 640;
-        volatile uint8_t *d  = dst + y * 320;
+        const uint32_t *s0 = src + (y*4) * DOOMGENERIC_RESX;
+        const uint32_t *s1 = s0  + DOOMGENERIC_RESX;
+        volatile uint8_t *d  = dst + y * VGA13_W;
         for (int x = 0; x < VGA13_W; ++x) {
             uint32_t c00 = s0[x*2], c01 = s0[x*2+1];
             uint32_t c10 = s1[x*2], c11 = s1[x*2+1];
@@ -41,12 +50,19 @@ void DG_DrawFrame(void) {
 
 
 void DG_SleepMs(uint32_t ms) {
+    // pit_ticks is incremented in the PIT interrupt handler 100 times per second
+    // so we divide ms by 10 to get the number of ticks to wait
+    uint32_t target_ticks = pit_ticks + (ms / 10);
+    while (pit_ticks < target_ticks) {
+        halt_cpu();
+    }
 
 }
 
 uint32_t DG_GetTicksMs() {
-
-	return 0;
+    // pit_ticks is incremented in the PIT interrupt handler 100 times per second
+    // so we multiply by 10 to get milliseconds
+	return (pit_ticks - start_ticks) * 10;
 }
 
 int DG_GetKey(int* pressed, unsigned char* doomKey) {
