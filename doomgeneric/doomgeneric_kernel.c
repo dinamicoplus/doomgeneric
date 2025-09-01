@@ -14,37 +14,88 @@
 #include <drivers/video_vga13.h>
 #include <drivers/pit.h>
 #include <kernel/system.h>
+#include <string.h>
+#include "i_video.h"
+
+#define R(x) (((x)>> 16)&0xFF)
+#define G(x) (((x)>>  8)&0xFF)
+#define B(x) (((x)>>  0)&0xFF)
 
 uint8_t color_wheel = 0;
 uint32_t start_ticks;
 
 void DG_Init() {
 	vga_set_mode13();
-    vga13_build_palette();
+    //vga_init_text_mode();
 	vga13_clear(0);
     start_ticks = pit_ticks;
 }
 
-void DG_DrawFrame(void) {
+typedef struct
+{
+	byte r;
+	byte g;
+	byte b;
+} col_t;
 
-    // vga13_clear(color_wheel);
+int getPaletteIndex (int r, int g, int b)
+{
+    int best, best_diff, diff;
+    int i;
+    col_t color;
+
+    best = 0;
+    best_diff = INT_MAX;
+
+    for (i = 0; i < 256; ++i)
+    {
+    	color.r = colors[i].r;
+    	color.g = colors[i].g;
+    	color.b = colors[i].b;
+
+        diff = (r - color.r) * (r - color.r)
+             + (g - color.g) * (g - color.g)
+             + (b - color.b) * (b - color.b);
+
+        if (diff < best_diff)
+        {
+            best = i;
+            best_diff = diff;
+        }
+
+        if (diff == 0)
+        {
+            break;
+        }
+    }
+
+    return best;
+}
+
+void DG_DrawFrame(void) {
+    //while(1);
     // color_wheel = (color_wheel + 1) & 0xFF;
     const uint32_t *src = (const uint32_t *)DG_ScreenBuffer;
     volatile uint8_t *dst = VGA13_FB;
     for (int y = 0; y < VGA13_H; ++y) {
-        const uint32_t *s0 = src + (y*4) * DOOMGENERIC_RESX;
-        const uint32_t *s1 = s0  + DOOMGENERIC_RESX;
+        const uint32_t *s = src + (y*4) * DOOMGENERIC_RESX;
         volatile uint8_t *d  = dst + y * VGA13_W;
         for (int x = 0; x < VGA13_W; ++x) {
-            uint32_t c00 = s0[x*2], c01 = s0[x*2+1];
-            uint32_t c10 = s1[x*2], c11 = s1[x*2+1];
-            // Promedio rápido por canal (sin overflow visible)
-            uint32_t r = ((c00>>16)&0xFF) + ((c01>>16)&0xFF) + ((c10>>16)&0xFF) + ((c11>>16)&0xFF);
-            uint32_t g = ((c00>> 8)&0xFF) + ((c01>> 8)&0xFF) + ((c10>> 8)&0xFF) + ((c11>> 8)&0xFF);
-            uint32_t b = ((c00    )&0xFF) + ((c01    )&0xFF) + ((c10    )&0xFF) + ((c11    )&0xFF);
-            uint32_t avg = (0xFFu<<24) | (((r+2)>>2)<<16) | (((g+2)>>2)<<8) | ((b+2)>>2);
-            d[x] = rgb32_to_index(avg); // o la versión con dithering
+            //d[x] = rgb32_to_enhanced_index(s[DOOMGENERIC_RESX/VGA13_W*x]); // o la versión con dithering
+            d[x] = getPaletteIndex(R(s[DOOMGENERIC_RESX/VGA13_W*x]), G(s[DOOMGENERIC_RESX/VGA13_W*x]), B(s[DOOMGENERIC_RESX/VGA13_W*x]));
         }
+    }
+    handleKeyInput();
+
+    // Update palette
+    if(palette_changed) {
+        for(int i = 0; i < 256; i++) {
+            uint8_t r = colors[i].r >> 2;
+            uint8_t g = colors[i].g >> 2;
+            uint8_t b = colors[i].b >> 2;
+            vga13_set_palette(i, r, g, b);
+        }
+        palette_changed = false;
     }
 }
 

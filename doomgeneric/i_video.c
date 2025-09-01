@@ -48,7 +48,6 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 #include <sys/types.h>
 
-//#define CMAP256
 
 struct FB_BitField
 {
@@ -84,7 +83,8 @@ struct color colors[256];
 
 #else  // CMAP256
 
-static struct color colors[256];
+boolean palette_changed;
+struct color colors[256];
 
 
 #endif  // CMAP256
@@ -412,11 +412,9 @@ void I_SetPalette (byte* palette)
         colors[i].b = gammatable[usegamma][*palette++];
     }
 
-#ifdef CMAP256
 
     palette_changed = true;
-
-#endif  // CMAP256
+// CMAP256
 }
 
 // Given an RGB value, find the closest matching palette index.
