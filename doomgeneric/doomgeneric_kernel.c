@@ -85,7 +85,6 @@ void DG_DrawFrame(void) {
             d[x] = getPaletteIndex(R(s[DOOMGENERIC_RESX/VGA13_W*x]), G(s[DOOMGENERIC_RESX/VGA13_W*x]), B(s[DOOMGENERIC_RESX/VGA13_W*x]));
         }
     }
-    handleKeyInput();
 
     // Update palette
     if(palette_changed) {
